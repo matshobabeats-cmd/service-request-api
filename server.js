@@ -2,8 +2,19 @@ import express from 'express';
 import { Pool } from 'pg';
 
 const app = express();
-const pool = new Pool();
-const PORT = 3000;
+// Hosted databases provide a single DATABASE_URL (and usually require SSL).
+// Locally, Pool() falls back to the PG* variables from .env.
+const pool = new Pool(
+  process.env.DATABASE_URL
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false },
+      }
+    : undefined,
+);
+
+// Hosts assign the port through the PORT environment variable.
+const PORT = process.env.PORT || 3000;
 
 const CATEGORIES = ['facilities', 'it', 'hr', 'other'];
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
