@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Service Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F6F8;
+    --surface: #FFFFFF;
+    --ink: #1B2430;
+    --muted: #5B6572;
+    --border: #DDE1E6;
+    --accent: #2F6F6B;
+    --accent-ink: #FFFFFF;
+    --danger: #A13D3D;
+    --open: #B7791F;
+    --in_progress: #2B6CB0;
+    --resolved: #2F855A;
+    --closed: #718096;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  .wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .counts { display: flex; gap: 18px; }
+  .count { text-align: right; }
+  .count .n {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+    display: block;
+  }
+  .count .l { font-size: 12px; color: var(--muted); }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); }
+
+  .new-ticket-toggle {
+    width: 100%;
+    text-align: left;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    margin-bottom: 10px;
+  }
+  .new-ticket-toggle:hover { background: #FAFBFC; }
+  form#createForm { margin-bottom: 10px; padding: 18px 16px 16px; display: none; }
+  form#createForm.open { display: block; }
+  .field-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .field { flex: 1 1 200px; display: flex; flex-direction: column; gap: 4px; }
+  .field.full { flex-basis: 100%; }
+  label { font-size: 12.5px; color: var(--muted); }
+  input, select, textarea {
+    font: inherit;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--ink);
+  }
+  textarea { resize: vertical; min-height: 64px; }
+  input:focus, select:focus, textarea:focus, button:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .form-actions { display: flex; gap: 10px; align-items: center; }
+  button.primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: 1px solid var(--accent);
+    padding: 9px 16px;
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  button.primary:hover { filter: brightness(1.08); }
+  button.ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    padding: 9px 14px;
+    font: inherit;
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .form-error { color: var(--danger); font-size: 13px; }
+
+  .filters { display: flex; gap: 10px; flex-wrap: wrap; margin: 22px 0 10px; align-items: center; }
+  .filters select, .filters input[type=search] {
+    padding: 7px 9px;
+    border: 1px solid var(--border);
+    background: #fff;
+    font: inherit;
+    font-size: 13.5px;
+  }
+  .filters input[type=search] { flex: 1 1 200px; }
+  .filters .clear {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  ul#list { list-style: none; margin: 0; padding: 0; }
+  li.ticket { border: 1px solid var(--border); border-top: none; }
+  li.ticket:first-child { border-top: 1px solid var(--border); }
+  .row {
+    display: grid;
+    grid-template-columns: 56px 1fr 100px 90px 130px 90px;
+    gap: 10px;
+    align-items: center;
+    padding: 12px 14px;
+    cursor: pointer;
+    background: var(--surface);
+  }
+  .row:hover { background: #FAFBFC; }
+  .id { color: var(--muted); font-size: 13px; }
+  .title-cell { min-width: 0; }
+  .title-cell .t { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .title-cell .req { color: var(--muted); font-size: 12.5px; }
+  .tag { font-size: 12.5px; color: var(--muted); }
+  .status { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .dot.open { background: var(--open); }
+  .dot.in_progress { background: var(--in_progress); }
+  .dot.resolved { background: var(--resolved); }
+  .dot.closed { background: var(--closed); }
+  .assignee { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .details { display: none; padding: 4px 16px 18px 82px; background: #FAFBFC; border-top: 1px solid var(--border); }
+  .details.open { display: block; }
+  .details p { margin: 8px 0; color: var(--ink); font-size: 14px; }
+  .meta-line { color: var(--muted); font-size: 12.5px; margin-bottom: 10px; }
+  .assign-row { display: flex; gap: 8px; margin: 12px 0; }
+  .assign-row input { flex: 1; max-width: 220px; }
+  .action-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .detail-error { color: var(--danger); font-size: 13px; }
+  .hint { color: var(--muted); font-size: 12.5px; }
+
+  .empty { padding: 40px 16px; text-align: center; color: var(--muted); border: 1px dashed var(--border); }
+
+  footer { margin-top: 30px; color: var(--muted); font-size: 12.5px; text-align: center; }
+  footer code { background: #ECEEF1; padding: 1px 5px; }
+
+  @media (max-width: 640px) {
+    .row {
+      grid-template-columns: 1fr auto;
+      grid-template-areas: "title status" "meta assignee";
+      row-gap: 4px;
+    }
+    .id { display: none; }
+    .title-cell { grid-area: title; }
+    .status { grid-area: status; justify-self: end; }
+    .tag { grid-area: meta; }
+    .assignee { grid-area: assignee; justify-self: end; }
+    .details { padding-left: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Service desk</h1>
+      <p>Log a request and track it through to close.</p>
+    </div>
+    <div class="counts" id="counts">
+      <div class="count"><span class="n">–</span><span class="l">open</span></div>
+      <div class="count"><span class="n">–</span><span class="l">resolved</span></div>
+      <div class="count"><span class="n">–</span><span class="l">closed</span></div>
+    </div>
+  </header>
+
+  <button class="new-ticket-toggle" id="toggleForm" type="button">+ Log a new ticket</button>
+
+  <form id="createForm" class="panel">
+    <div class="field-row">
+      <div class="field full">
+        <label for="title">What's the issue?</label>
+        <input id="title" name="title" maxlength="120" required placeholder="e.g. Leaking tap in kitchen">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field full">
+        <label for="description">Details</label>
+        <textarea id="description" name="description" maxlength="2000" required placeholder="What's happening, and since when?"></textarea>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="category">Category</label>
+        <select id="category" name="category" required>
+          <option value="">Select one</option>
+          <option value="facilities">Facilities</option>
+          <option value="it">IT</option>
+          <option value="hr">HR</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="priority">Priority</label>
+        <select id="priority" name="priority">
+          <option value="low">Low</option>
+          <option value="medium" selected>Medium</option>
+          <option value="high">High</option>
+          <option value="urgent">Urgent</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="requesterName">Your name</label>
+        <input id="requesterName" name="requesterName" maxlength="100" required placeholder="e.g. Alex Morgan">
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="primary">Log ticket</button>
+      <button type="button" class="ghost" id="cancelForm">Cancel</button>
+      <span class="form-error" id="formError"></span>
+    </div>
+  </form>
+
+  <div class="filters">
+    <select id="fStatus">
+      <option value="">All statuses</option>
+      <option value="open">Open</option>
+      <option value="in_progress">In progress</option>
+      <option value="resolved">Resolved</option>
+      <option value="closed">Closed</option>
+    </select>
+    <select id="fPriority">
+      <option value="">All priorities</option>
+      <option value="low">Low</option>
+      <option value="medium">Medium</option>
+      <option value="high">High</option>
+      <option value="urgent">Urgent</option>
+    </select>
+    <select id="fCategory">
+      <option value="">All categories</option>
+      <option value="facilities">Facilities</option>
+      <option value="it">IT</option>
+      <option value="hr">HR</option>
+      <option value="other">Other</option>
+    </select>
+    <input type="search" id="fSearch" placeholder="Search title or description">
+    <button type="button" class="clear" id="clearFilters">Clear</button>
+  </div>
+
+  <ul id="list"></ul>
+  <div class="empty" id="empty" style="display:none;">No tickets match these filters.</div>
+
+  <footer>
+    Talks directly to <code>/api/requests</code> and <code>/api/dashboard</code> on this server.
+  </footer>
+</div>
+
+<script>
+const STATUS_LABEL = { open: 'Open', in_progress: 'In progress', resolved: 'Resolved', closed: 'Closed' };
+const NEXT_STATUS = { open: 'in_progress', in_progress: 'resolved', resolved: 'closed', closed: null };
+const NEXT_LABEL = { in_progress: 'Start work', resolved: 'Mark resolved', closed: 'Close ticket' };
+
+const listEl = document.getElementById('list');
+const emptyEl = document.getElementById('empty');
+const countsEl = document.getElementById('counts');
+
+function qs(params) {
+  const usp = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => { if (v) usp.set(k, v); });
+  const s = usp.toString();
+  return s ? `?${s}` : '';
+}
+
+function timeAgo(iso) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.round(hrs / 24)}d ago`;
+}
+
+async function loadDashboard() {
+  try {
+    const res = await fetch('/api/dashboard');
+    const d = await res.json();
+    countsEl.innerHTML = `
+      <div class="count"><span class="n mono">${d.open}</span><span class="l">open</span></div>
+      <div class="count"><span class="n mono">${d.resolved}</span><span class="l">resolved</span></div>
+      <div class="count"><span class="n mono">${d.closed}</span><span class="l">closed</span></div>
+    `;
+  } catch (e) { /* dashboard is a nice-to-have; ignore failures */ }
+}
+
+function currentFilters() {
+  return {
+    status: document.getElementById('fStatus').value,
+    priority: document.getElementById('fPriority').value,
+    category: document.getElementById('fCategory').value,
+    search: document.getElementById('fSearch').value.trim(),
+  };
+}
+
+async function loadList() {
+  listEl.innerHTML = '';
+  emptyEl.style.display = 'none';
+  const res = await fetch('/api/requests' + qs(currentFilters()));
+  const tickets = await res.json();
+  if (!Array.isArray(tickets) || tickets.length === 0) {
+    emptyEl.style.display = 'block';
+    return;
+  }
+  tickets.forEach(t => listEl.appendChild(renderTicket(t)));
+}
+
+function renderTicket(t) {
+  const li = document.createElement('li');
+  li.className = 'ticket';
+
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.innerHTML = `
+    <span class="id mono">#${t.id}</span>
+    <span class="title-cell">
+      <span class="t">${escapeHtml(t.title)}</span><br>
+      <span class="req">${escapeHtml(t.requester_name)}</span>
+    </span>
+    <span class="tag">${t.category}</span>
+    <span class="tag">${t.priority}</span>
+    <span class="status"><span class="dot ${t.status}"></span>${STATUS_LABEL[t.status]}</span>
+    <span class="assignee">${t.assigned_to ? escapeHtml(t.assigned_to) : '—'}</span>
+  `;
+
+  const details = document.createElement('div');
+  details.className = 'details';
+  details.appendChild(renderDetails(t));
+
+  row.addEventListener('click', () => {
+    details.classList.toggle('open');
+  });
+
+  li.appendChild(row);
+  li.appendChild(details);
+  return li;
+}
+
+function renderDetails(t) {
+  const wrap = document.createElement('div');
+  const next = NEXT_STATUS[t.status];
+
+  wrap.innerHTML = `
+    <p>${escapeHtml(t.description)}</p>
+    <div class="meta-line mono">#${t.id} &middot; logged ${timeAgo(t.created_at)} &middot; updated ${timeAgo(t.updated_at)}</div>
+    <div class="assign-row">
+      <input type="text" placeholder="Assign to…" value="${t.assigned_to ? escapeHtml(t.assigned_to) : ''}" class="assign-input">
+      <button type="button" class="ghost save-assign">Save</button>
+    </div>
+    <div class="action-row">
+      ${next
+        ? `<button type="button" class="primary advance-status">${NEXT_LABEL[next]}</button>`
+        : `<span class="hint">Closed — no further action.</span>`}
+      <span class="detail-error"></span>
+    </div>
+  `;
+
+  const err = wrap.querySelector('.detail-error');
+
+  wrap.querySelector('.save-assign').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const val = wrap.querySelector('.assign-input').value.trim();
+    if (!val) { err.textContent = 'Enter a name first.'; return; }
+    try {
+      await patchTicket(t.id, { assignedTo: val });
+      err.textContent = '';
+      await loadList();
+      await loadDashboard();
+    } catch (ex) { err.textContent = ex.message; }
+  });
+
+  const advanceBtn = wrap.querySelector('.advance-status');
+  if (advanceBtn) {
+    advanceBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      try {
+        await patchTicket(t.id, { status: next });
+        err.textContent = '';
+        await loadList();
+        await loadDashboard();
+      } catch (ex) { err.textContent = ex.message; }
+    });
+  }
+
+  wrap.addEventListener('click', (e) => e.stopPropagation());
+  return wrap;
+}
+
+async function patchTicket(id, body) {
+  const res = await fetch(`/api/requests/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Request failed (${res.status})`);
+  }
+  return res.json();
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+// --- create form ---
+const toggleBtn = document.getElementById('toggleForm');
+const form = document.getElementById('createForm');
+const formError = document.getElementById('formError');
+
+toggleBtn.addEventListener('click', () => {
+  form.classList.toggle('open');
+  toggleBtn.textContent = form.classList.contains('open') ? '– Close form' : '+ Log a new ticket';
+});
+document.getElementById('cancelForm').addEventListener('click', () => {
+  form.classList.remove('open');
+  toggleBtn.textContent = '+ Log a new ticket';
+  form.reset();
+  formError.textContent = '';
+});
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  formError.textContent = '';
+  const body = {
+    title: document.getElementById('title').value.trim(),
+    description: document.getElementById('description').value.trim(),
+    category: document.getElementById('category').value,
+    priority: document.getElementById('priority').value,
+    requesterName: document.getElementById('requesterName').value.trim(),
+  };
+  try {
+    const res = await fetch('/api/requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Could not create ticket.');
+    }
+    form.reset();
+    form.classList.remove('open');
+    toggleBtn.textContent = '+ Log a new ticket';
+    await loadList();
+    await loadDashboard();
+  } catch (ex) {
+    formError.textContent = ex.message;
+  }
+});
+
+// --- filters ---
+['fStatus', 'fPriority', 'fCategory'].forEach(id => {
+  document.getElementById(id).addEventListener('change', loadList);
+});
+let searchTimer;
+document.getElementById('fSearch').addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(loadList, 300);
+});
+document.getElementById('clearFilters').addEventListener('click', () => {
+  document.getElementById('fStatus').value = '';
+  document.getElementById('fPriority').value = '';
+  document.getElementById('fCategory').value = '';
+  document.getElementById('fSearch').value = '';
+  loadList();
+});
+
+loadDashboard();
+loadList();
+</script>
+</body>
+</html>

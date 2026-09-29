@@ -35,6 +35,13 @@ const hasText = (value) => typeof value === 'string' && value.trim().length > 0;
 app.disable('x-powered-by');
 app.use(express.json());
 
+// Serves public/index.html (the ticket-lodging frontend) at "/", plus any
+// other files in public/. Placed before the routes below so a request for
+// "/" is answered by the static file rather than falling through to the
+// 404 handler.
+app.use(express.static('public'));
+app.use(express.static('public'));
+
 // ---------- Health ----------
 app.get('/health', async (_req, res, next) => {
   try {
